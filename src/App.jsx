@@ -1,4 +1,5 @@
 // src/App.jsx
+import { AdMob } from '@capacitor-community/admob';
 import React, { useState, useEffect } from 'react';
 import GameCanvas from './components/GameCanvas';
 
@@ -51,6 +52,13 @@ export default function App() {
     return saved ? JSON.parse(saved) : { engine: 1, brakes: 1, grip: 1, cargo: 1 };
   });
 
+
+useEffect(() => {
+    // AdMob'u başlat
+    AdMob.initialize({ requestTrackingAuthorization: true });
+  }, []);
+
+
   // 2. Durum Değiştikçe Otomatik Kaydet
   useEffect(() => {
     localStorage.setItem('gce_gold', playerGold.toString());
@@ -64,8 +72,21 @@ export default function App() {
     localStorage.setItem('gce_upgrades', JSON.stringify(upgrades));
   }, [upgrades]);
 
-  // 3. Bölüm Tamamlama Mantığı (Yeni Seviyeyi Açar ve Altın Verir)
-  const handleLevelComplete = (levelId, rewardGold) => {
+
+
+
+const handleLevelComplete = async (levelId, rewardGold) => {
+    // Bölüm bittiğinde geçiş reklamını gösterelim
+    try {
+      await AdMob.prepareInterstitial({
+        adId: 'ca-app-pub-3940256099942544/1033173712', // Google resmi test Interstitial ID'si
+        isTesting: true
+      });
+      await AdMob.showInterstitial();
+    } catch (e) {
+      console.log("Reklam gösterilemedi, oyuna devam ediliyor:", e);
+    }
+
     setPlayerGold(prev => prev + rewardGold);
     
     // Bir sonraki bölümü bul ve kilidini aç
@@ -78,6 +99,12 @@ export default function App() {
     }
     setSelectedLevel(null); // Menüye dön
   };
+
+
+
+
+
+
 
   // 4. Parça Geliştirme Satın Alımı
   const buyUpgrade = (stat) => {

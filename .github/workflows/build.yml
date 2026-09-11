@@ -21,10 +21,28 @@ jobs:
           npm install
           npm run build
 
-      - name: Generate Fresh Android Folder
+      - name: Generate Fresh Android Folder & Inject AdMob
         run: |
           rm -rf android
           npx cap add android
+          
+          # AndroidManifest.xml dosyasına AdMob Test ID'sini otomatik ekler
+          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          python3 -c "
+          path = '$MANIFEST_PATH'
+          with open(path, 'r') as f:
+              content = f.read()
+          meta_tag = '''
+              <meta-data
+                  android:name='com.google.android.gms.ads.APPLICATION_ID'
+                  android:value='ca-app-pub-3940256099942544~3347517131'/>
+          '''
+          if '<application' in content and 'APPLICATION_ID' not in content:
+              content = content.replace('<application', '<application' + meta_tag)
+              with open(path, 'w') as f:
+                  f.write(content)
+              print('AdMob Manifest otomatik olarak eklendi!')
+          "
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
