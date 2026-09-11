@@ -32,7 +32,7 @@ jobs:
           # 1. Base64 keystore dosyasını projeye çöz
           echo "$KEYSTORE_BASE64" | base64 --decode > android/app/my-release-key.jks
 
-          # 2. Python ile AdMob Manifest ve Gradle İmza Ayarlarını Otomatik Ekle
+          # 2. Python ile Manifest ve build.gradle Ayarlarını Yapılandır
           python3 -c "
           # AdMob Manifest Ekleme
           manifest_path = 'android/app/src/main/AndroidManifest.xml'
@@ -45,12 +45,14 @@ jobs:
               m_content = m_content.replace('    ', meta_tag + '    ')
               with open(manifest_path, 'w') as f:
                   f.write(m_content)
-              print('AdMob Manifest başarıyla eklendi!')
 
-          # build.gradle Dosyasına İmza Yapılandırması Ekleme
+          # build.gradle Düzenleme (compileSdk ve signingConfigs)
           gradle_path = 'android/app/build.gradle'
           with open(gradle_path, 'r') as f:
               g_content = f.read()
+
+          if 'compileSdk' not in g_content:
+              g_content = g_content.replace('android {', 'android {\n    compileSdk 34')
 
           signing_configs_block = '''
               signingConfigs {
@@ -66,11 +68,11 @@ jobs:
               g_content = g_content.replace('android {', 'android {' + signing_configs_block)
 
           if 'signingConfig signingConfigs.release' not in g_content:
-              g_content = g_content.replace('release {', 'release {\n            signingConfig signingConfigs.release')
+              g_content = g_content.replace('release {', 'release {\n            signingConfig signingConfigs.release', 1)
 
           with open(gradle_path, 'w') as f:
               f.write(g_content)
-          print('Signing config build.gradle dosyasına başarıyla eklendi!')
+          print('build.gradle başarıyla güncellendi!')
           "
 
       - name: Set up JDK 21
