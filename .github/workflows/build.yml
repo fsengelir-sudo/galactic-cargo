@@ -19,6 +19,7 @@ jobs:
       - name: Install Dependencies & Build Web
         run: |
           npm install
+          npm install @capacitor-community/admob
           npm run build
 
       - name: Generate Fresh Android Folder & Inject AdMob
