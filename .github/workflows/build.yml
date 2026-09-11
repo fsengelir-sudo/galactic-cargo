@@ -22,25 +22,55 @@ jobs:
           npm install @capacitor-community/admob
           npm run build
 
-      - name: Generate Fresh Android Folder & Inject AdMob
+      - name: Setup Android, AdMob & Keystore Signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
           rm -rf android
           npx cap add android
           
-          # AndroidManifest.xml içine AdMob Test ID'sini güvenli bir şekilde ekler
-          MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
+          # 1. Base64 keystore dosyasını projeye çöz
+          echo "$KEYSTORE_BASE64" | base64 --decode > android/app/my-release-key.jks
+
+          # 2. Python ile AdMob Manifest ve Gradle İmza Ayarlarını Otomatik Ekle
           python3 -c "
-          path = '$MANIFEST_PATH'
-          with open(path, 'r') as f:
-              content = f.read()
+          # AdMob Manifest Ekleme
+          manifest_path = 'android/app/src/main/AndroidManifest.xml'
+          with open(manifest_path, 'r') as f:
+              m_content = f.read()
           meta_tag = '''
               
           '''
-          if 'APPLICATION_ID' not in content:
-              content = content.replace('    ', meta_tag + '    ')
-              with open(path, 'w') as f:
-                  f.write(content)
+          if 'APPLICATION_ID' not in m_content:
+              m_content = m_content.replace('    ', meta_tag + '    ')
+              with open(manifest_path, 'w') as f:
+                  f.write(m_content)
               print('AdMob Manifest başarıyla eklendi!')
+
+          # build.gradle Dosyasına İmza Yapılandırması Ekleme
+          gradle_path = 'android/app/build.gradle'
+          with open(gradle_path, 'r') as f:
+              g_content = f.read()
+
+          signing_configs_block = '''
+              signingConfigs {
+                  release {
+                      storeFile file('my-release-key.jks')
+                      storePassword System.getenv(\"STORE_PASSWORD\")
+                      keyAlias System.getenv(\"KEY_ALIAS\")
+                      keyPassword System.getenv(\"KEY_PASSWORD\")
+                  }
+              }
+          '''
+          if 'signingConfigs' not in g_content:
+              g_content = g_content.replace('android {', 'android {' + signing_configs_block)
+
+          if 'signingConfig signingConfigs.release' not in g_content:
+              g_content = g_content.replace('release {', 'release {\n            signingConfig signingConfigs.release')
+
+          with open(gradle_path, 'w') as f:
+              f.write(g_content)
+          print('Signing config build.gradle dosyasına başarıyla eklendi!')
           "
 
       - name: Set up JDK 21
@@ -49,21 +79,15 @@ jobs:
           distribution: 'temurin'
           java-version: '21'
 
-      - name: Build Android Release Bundle
+      - name: Build & Sign Android Release Bundle
+        env:
+          STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           cd android
           chmod +x gradlew
           ./gradlew bundleRelease
-
-      - name: Sign Android Release Bundle
-        uses: r0adkll/sign-android@v2
-        with:
-          releaseDir: android/app/build/outputs/bundle/release
-          alias: ${{ secrets.KEY_ALIAS }}
-          release: true
-          keystoreBase64: ${{ secrets.KEYSTORE_BASE64 }}
-          storePassword: ${{ secrets.STORE_PASSWORD }}
-          keyPassword: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
