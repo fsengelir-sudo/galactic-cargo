@@ -21,9 +21,10 @@ jobs:
           npm install
           npm run build
 
-      - name: Sync Capacitor Android
+      - name: Generate Fresh Android Folder
         run: |
-          npx cap sync android
+          rm -rf android
+          npx cap add android
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
