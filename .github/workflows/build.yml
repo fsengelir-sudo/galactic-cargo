@@ -34,12 +34,10 @@ jobs:
           with open(path, 'r') as f:
               content = f.read()
           meta_tag = '''
-              <meta-data
-                  android:name=\"com.google.android.gms.ads.APPLICATION_ID\"
-                  android:value=\"ca-app-pub-3940256099942544~3347517131\"/>
+              
           '''
           if 'APPLICATION_ID' not in content:
-              content = content.replace('    </application>', meta_tag + '    </application>')
+              content = content.replace('    ', meta_tag + '    ')
               with open(path, 'w') as f:
                   f.write(content)
               print('AdMob Manifest başarıyla eklendi!')
@@ -56,6 +54,16 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew bundleRelease
+
+      - name: Sign Android Release Bundle
+        uses: r0adkll/sign-android@v2
+        with:
+          releaseDir: android/app/build/outputs/bundle/release
+          alias: ${{ secrets.KEY_ALIAS }}
+          release: true
+          keystoreBase64: ${{ secrets.KEYSTORE_BASE64 }}
+          storePassword: ${{ secrets.STORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
 
       - name: Upload AAB Artifact
         uses: actions/upload-artifact@v4
